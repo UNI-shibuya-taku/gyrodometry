@@ -17,7 +17,7 @@ class ImuInitialAlignment{
 		tf::TransformBroadcaster tf_broadcaster;
 		/*const*/
 		const int size_data = 6;	//wx, wy, wx, vx, vy, vz
-		const double time_enough = 30.0;	//[s]
+		const double time_enough = 60.0;	//[s]
 		const double threshold_deflection_imu_angular = 0.03;
 		const double threshold_deflection_imu_linear = 0.2;
 		/* const double threshold_abs_imu_linear = 0.2; */

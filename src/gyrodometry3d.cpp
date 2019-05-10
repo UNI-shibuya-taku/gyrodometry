@@ -7,6 +7,7 @@
 class Gyrodometry{
 	private:
 		ros::NodeHandle nh;
+		ros::NodeHandle nhPrivate;
 		/*subscribe*/
 		ros::Subscriber sub_inipose;
 		ros::Subscriber sub_odom;
@@ -42,6 +43,7 @@ class Gyrodometry{
 };
 
 Gyrodometry::Gyrodometry()
+	:nhPrivate("~")
 {
 	sub_inipose = nh.subscribe("/initial_pose", 1, &Gyrodometry::CallbackInipose, this);
 	sub_odom = nh.subscribe("/odom", 1, &Gyrodometry::CallbackOdom, this);
@@ -50,6 +52,10 @@ Gyrodometry::Gyrodometry()
 	pub_odom = nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
 	InitializeOdom(odom3d_now);
 	InitializeOdom(odom3d_last);
+	
+	nhPrivate.param("inipose_is_available", inipose_is_available, false);
+	if(inipose_is_available)	std::cout << ">> Initial orientation: (0, 0, 0, 1)" << std::endl;
+	else	std::cout << ">> Initial orientation will be estimated" << std::endl;
 }
 
 void Gyrodometry::InitializeOdom(nav_msgs::Odometry& odom)
@@ -120,15 +126,14 @@ void Gyrodometry::CallbackIMU(const sensor_msgs::ImuConstPtr& msg)
 
 	/*PoseEstimation*/
 	if(first_callback_imu)	dt = 0.0;
-	else if(inipose_is_available){
+	else if(bias_is_available){
 		double delta_r = (msg->angular_velocity.x + imu_last.angular_velocity.x)*dt/2.0;
 		double delta_p = (msg->angular_velocity.y + imu_last.angular_velocity.y)*dt/2.0;
 		double delta_y = (msg->angular_velocity.z + imu_last.angular_velocity.z)*dt/2.0;
-		if(bias_is_available){
-			delta_r -= bias.angular_velocity.x*dt;
-			delta_p -= bias.angular_velocity.y*dt;
-			delta_y -= bias.angular_velocity.z*dt;
-		}
+		delta_r -= bias.angular_velocity.x*dt;
+		delta_p -= bias.angular_velocity.y*dt;
+		delta_y -= bias.angular_velocity.z*dt;
+
 		tf::Quaternion q_relative_rotation = tf::createQuaternionFromRPY(delta_r, delta_p, delta_y);
 		tf::Quaternion q_pose3d_now;
 		quaternionMsgToTF(odom3d_now.pose.pose.orientation, q_pose3d_now);

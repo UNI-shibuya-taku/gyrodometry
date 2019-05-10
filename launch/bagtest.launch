@@ -3,14 +3,11 @@
 	<param name="use_sim_time" value="true"/>
 
 	<!-- rosbag -->
-	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/infant/mocap/0113_infant/2019&#45;01&#45;13&#45;15&#45;46&#45;58.bag &#45;s 30"/> -->
-	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/infant/mocap/0113_infant/2019-01-13-15-46-58.bag -s 130"/>
+	<node pkg="rosbag" type="play" name="player" args="--clock /home/amsl/ozaki/bagfiles/infant/mocap/0113_infant/2019-01-13-15-46-58.bag -s 30"/>
+	<!-- <node pkg="rosbag" type="play" name="player" args="&#45;&#45;clock /home/amsl/ozaki/bagfiles/infant/mocap/0113_infant/2019&#45;01&#45;13&#45;15&#45;46&#45;58.bag &#45;s 130"/> -->
 
 	<!-- rviz -->
 	<node pkg="rviz" type="rviz" name="rviz" args="-d /home/amsl/.rviz/trajectories_perspective.rviz"/>
-
-	<!-- sensor driver -->
-	<!-- <include file="$(find velodyne_pointcloud)/launch/32e_points.launch"/> -->
 
 	<!-- for infant -->
 	<node pkg="pose_estimation_walls" name="odom_republish_infant" type="odom_republish_infant"/>
@@ -19,5 +16,7 @@
 	<node pkg="gyrodometry" name="initial_alignment" type="initial_alignment" output="screen"/>
 	<node pkg="gyrodometry" name="gyrodometry3d" type="gyrodometry3d" output="screen">
 		<remap from="/odom" to="/tinypower/odom/republished"/>
+		<param name="inipose_is_available" type="bool" value="false"/>
+		<!-- <param name="inipose_is_available" type="bool" value="true"/> -->
 	</node>
 </launch>
