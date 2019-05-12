@@ -121,13 +121,15 @@ void Gyrodometry::CallbackIMU(const sensor_msgs::ImuConstPtr& msg)
 
 	/*PoseEstimation*/
 	if(first_callback_imu)	dt = 0.0;
-	else if(bias_is_available){
+	else if(inipose_is_available){
 		double delta_r = (msg->angular_velocity.x + imu_last.angular_velocity.x)*dt/2.0;
 		double delta_p = (msg->angular_velocity.y + imu_last.angular_velocity.y)*dt/2.0;
 		double delta_y = (msg->angular_velocity.z + imu_last.angular_velocity.z)*dt/2.0;
-		delta_r -= bias.angular_velocity.x*dt;
-		delta_p -= bias.angular_velocity.y*dt;
-		delta_y -= bias.angular_velocity.z*dt;
+		if(bias_is_available){
+			delta_r -= bias.angular_velocity.x*dt;
+			delta_p -= bias.angular_velocity.y*dt;
+			delta_y -= bias.angular_velocity.z*dt;
+		}
 
 		tf::Quaternion q_relative_rotation = tf::createQuaternionFromRPY(delta_r, delta_p, delta_y);
 		tf::Quaternion q_pose3d_now;
