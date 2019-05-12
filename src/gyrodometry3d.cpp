@@ -6,8 +6,8 @@
 
 class Gyrodometry{
 	private:
+		/*node hangle*/
 		ros::NodeHandle nh;
-		ros::NodeHandle nhPrivate;
 		/*subscribe*/
 		ros::Subscriber sub_inipose;
 		ros::Subscriber sub_odom;
@@ -43,19 +43,14 @@ class Gyrodometry{
 };
 
 Gyrodometry::Gyrodometry()
-	:nhPrivate("~")
 {
-	sub_inipose = nh.subscribe("/initial_pose", 1, &Gyrodometry::CallbackInipose, this);
+	sub_inipose = nh.subscribe("/initial_orientation", 1, &Gyrodometry::CallbackInipose, this);
 	sub_odom = nh.subscribe("/odom", 1, &Gyrodometry::CallbackOdom, this);
 	sub_imu = nh.subscribe("/imu/data", 1, &Gyrodometry::CallbackIMU, this);
 	sub_bias = nh.subscribe("/imu/bias", 1, &Gyrodometry::CallbackBias, this);
 	pub_odom = nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
 	InitializeOdom(odom3d_now);
 	InitializeOdom(odom3d_last);
-	
-	nhPrivate.param("inipose_is_available", inipose_is_available, false);
-	if(inipose_is_available)	std::cout << ">> Initial orientation: (0, 0, 0, 1)" << std::endl;
-	else	std::cout << ">> Initial orientation will be estimated" << std::endl;
 }
 
 void Gyrodometry::InitializeOdom(nav_msgs::Odometry& odom)

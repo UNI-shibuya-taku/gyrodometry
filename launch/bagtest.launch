@@ -13,9 +13,10 @@
 	<node pkg="pose_estimation_walls" name="odom_republish_infant" type="odom_republish_infant"/>
 
 	<!-- main -->
-	<node pkg="gyrodometry" name="initial_alignment" type="initial_alignment" output="screen"/>
+	<node pkg="gyrodometry" name="initial_alignment" type="initial_alignment" output="screen">
+		<param name="initial_orientation_is_0001" type="bool" value="true"/>
+	</node>
 	<node pkg="gyrodometry" name="gyrodometry3d" type="gyrodometry3d" output="screen">
 		<remap from="/odom" to="/tinypower/odom/republished"/>
-		<!-- <param name="inipose_is_available" type="bool" value="true"/> -->
 	</node>
 </launch>

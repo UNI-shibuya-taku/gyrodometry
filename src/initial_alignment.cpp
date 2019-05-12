@@ -8,7 +8,9 @@
 
 class ImuInitialAlignment{
 	private:
+		/*node hangle*/
 		ros::NodeHandle nh;
+		ros::NodeHandle nhPrivate;
 		/*subscribe*/
 		ros::Subscriber sub_imu;
 		/*publish*/
@@ -26,12 +28,13 @@ class ImuInitialAlignment{
 		/* const double threshold_abs_odom_angular = 1.0e-3; */
 		const int min_record_size = 10;
 		/*objects*/
-		geometry_msgs::Quaternion initial_pose;
+		geometry_msgs::Quaternion initial_orientation;
 		std::vector<sensor_msgs::Imu> record;
 		sensor_msgs::Imu average;
 		/*flags*/
 		bool imu_is_moving = false;
 		bool initial_algnment_is_done = false;
+		bool initial_orientation_is_0001 = false;
 	public:
 		ImuInitialAlignment();
 		void CallbackIMU(const sensor_msgs::ImuConstPtr& msg);
@@ -45,10 +48,15 @@ class ImuInitialAlignment{
 };
 
 ImuInitialAlignment::ImuInitialAlignment()
+	:nhPrivate("~")
 {
 	sub_imu = nh.subscribe("/imu/data", 1, &ImuInitialAlignment::CallbackIMU, this);
-	pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_pose", 1);
+	pub_inipose = nh.advertise<geometry_msgs::Quaternion>("/initial_orientation", 1);
 	pub_bias = nh.advertise<sensor_msgs::Imu>("/imu/bias", 1);
+
+	nhPrivate.param("initial_orientation_is_0001", initial_orientation_is_0001, false);
+	if(initial_orientation_is_0001)	std::cout << ">> Initial orientation: (0, 0, 0, 1)" << std::endl;
+	else	std::cout << ">> Initial orientation will be estimated" << std::endl;
 }
 
 void ImuInitialAlignment::CallbackIMU(const sensor_msgs::ImuConstPtr& msg)
@@ -146,7 +154,8 @@ void ImuInitialAlignment::ComputeInitialPose(void)
 	double az = average.linear_acceleration.z;
 	double r = atan2(ay, az);
 	double p = atan2(-ax, sqrt(ay*ay + az*az));
-	quaternionTFToMsg(tf::createQuaternionFromRPY(r, p, 0), initial_pose);
+	quaternionTFToMsg(tf::createQuaternionFromRPY(r, p, 0), initial_orientation);
+	if(initial_orientation_is_0001)	quaternionTFToMsg(tf::createQuaternionFromRPY(0, 0, 0), initial_orientation);
 
 	std::cout << "inittial (roll, pitch) = (" << r/M_PI*180.0 << ", " << p/M_PI*180.0 << ")[deg]" << std::endl;
 }
@@ -154,26 +163,26 @@ void ImuInitialAlignment::ComputeInitialPose(void)
 void ImuInitialAlignment::InputZero(void)
 {
 	average = InputToImuMsg(Eigen::VectorXd::Zero(size_data));
-	initial_pose.x = 0.0;
-	initial_pose.y = 0.0;
-	initial_pose.z = 0.0;
-	initial_pose.w = 1.0;
+	initial_orientation.x = 0.0;
+	initial_orientation.y = 0.0;
+	initial_orientation.z = 0.0;
+	initial_orientation.w = 1.0;
 }
 
 void ImuInitialAlignment::Publication(void)
 {
 	/*publish*/
-	pub_inipose.publish(initial_pose);
+	pub_inipose.publish(initial_orientation);
 	pub_bias.publish(average);
 	/*tf broadcast*/
     geometry_msgs::TransformStamped transform;
 	transform.header.stamp = ros::Time::now();
 	transform.header.frame_id = "/odom";
-	transform.child_frame_id = "/initial_pose";
+	transform.child_frame_id = "/initial_orientation";
 	transform.transform.translation.x = 0.0;
 	transform.transform.translation.y = 0.0;
 	transform.transform.translation.z = 0.0;
-	transform.transform.rotation = initial_pose;
+	transform.transform.rotation = initial_orientation;
 	tf_broadcaster.sendTransform(transform);
 }
 
