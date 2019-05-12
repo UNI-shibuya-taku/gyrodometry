@@ -14,7 +14,7 @@
 
 	<!-- main -->
 	<node pkg="gyrodometry" name="initial_alignment" type="initial_alignment" output="screen">
-		<param name="initial_orientation_is_0001" type="bool" value="true"/>
+		<!-- <param name="initial_orientation_is_0001" type="bool" value="true"/> -->
 	</node>
 	<node pkg="gyrodometry" name="gyrodometry3d" type="gyrodometry3d" output="screen">
 		<remap from="/odom" to="/tinypower/odom/republished"/>
