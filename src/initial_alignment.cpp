@@ -55,7 +55,7 @@ ImuInitialAlignment::ImuInitialAlignment()
 	pub_bias = nh.advertise<sensor_msgs::Imu>("/imu/bias", 1);
 
 	nhPrivate.param("initial_orientation_is_0001", initial_orientation_is_0001, false);
-	if(initial_orientation_is_0001)	std::cout << ">> Initial orientation: (0, 0, 0, 1)" << std::endl;
+	if(initial_orientation_is_0001)	std::cout << ">> Initial orientation won't be estimated: (0, 0, 0, 1)" << std::endl;
 	else	std::cout << ">> Initial orientation will be estimated" << std::endl;
 }
 
