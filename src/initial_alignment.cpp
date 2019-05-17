@@ -154,8 +154,11 @@ void ImuInitialAlignment::ComputeInitialPose(void)
 	double az = average.linear_acceleration.z;
 	double r = atan2(ay, az);
 	double p = atan2(-ax, sqrt(ay*ay + az*az));
-	quaternionTFToMsg(tf::createQuaternionFromRPY(r, p, 0), initial_orientation);
-	if(initial_orientation_is_0001)	quaternionTFToMsg(tf::createQuaternionFromRPY(0, 0, 0), initial_orientation);
+	if(initial_orientation_is_0001){
+		r = 0.0;
+		p = 0.0;
+	}
+	quaternionTFToMsg(tf::createQuaternionFromRPY(r, p, 0.0), initial_orientation);
 
 	std::cout << "inittial (roll, pitch) = (" << r/M_PI*180.0 << ", " << p/M_PI*180.0 << ")[deg]" << std::endl;
 }
