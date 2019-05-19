@@ -139,6 +139,8 @@ void Gyrodometry::CallbackIMU(const sensor_msgs::ImuConstPtr& msg)
 		quaternionTFToMsg(q_pose3d_now, odom3d_now.pose.pose.orientation);
 	}
 
+	Publication();
+
 	imu_last = *msg;
 	first_callback_imu = false;
 }
