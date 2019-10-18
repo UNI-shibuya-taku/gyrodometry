@@ -8,6 +8,7 @@ class Gyrodometry{
 	private:
 		/*node hangle*/
 		ros::NodeHandle nh;
+		ros::NodeHandle nhPrivate;
 		/*subscribe*/
 		ros::Subscriber sub_inipose;
 		ros::Subscriber sub_odom;
@@ -32,6 +33,8 @@ class Gyrodometry{
 		bool first_callback_imu = true;
 		bool inipose_is_available = false;
 		bool bias_is_available = false;
+		/*parameters*/
+		bool mode_use_linear_velocity;
 	public:
 		Gyrodometry();
 		void InitializeOdom(nav_msgs::Odometry& odom);
@@ -43,6 +46,7 @@ class Gyrodometry{
 };
 
 Gyrodometry::Gyrodometry()
+	:nhPrivate("~")
 {
 	sub_inipose = nh.subscribe("/initial_orientation", 1, &Gyrodometry::CallbackInipose, this);
 	sub_odom = nh.subscribe("/odom", 1, &Gyrodometry::CallbackOdom, this);
@@ -51,6 +55,9 @@ Gyrodometry::Gyrodometry()
 	pub_odom = nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
 	InitializeOdom(odom3d_now);
 	InitializeOdom(odom3d_last);
+
+	nhPrivate.param("mode_use_linear_velocity", mode_use_linear_velocity, false);
+	std::cout << "mode_use_linear_velocity = " << (bool)mode_use_linear_velocity << std::endl;
 }
 
 void Gyrodometry::InitializeOdom(nav_msgs::Odometry& odom)
@@ -79,7 +86,7 @@ void Gyrodometry::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
 	odom2d_now = *msg;
 
 	/*2Dto3D*/
-	if(!first_callback_odom){
+	if(!first_callback_odom && !mode_use_linear_velocity){
 		tf::Quaternion q_pose2d_last;
 		tf::Quaternion q_pose3d_last;
 		quaternionMsgToTF(odom2d_last.pose.pose.orientation, q_pose2d_last);
@@ -93,6 +100,23 @@ void Gyrodometry::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
 		);
 		tf::Quaternion q_local_move2d = q_pose2d_last.inverse()*q_global_move2d*q_pose2d_last;
 		tf::Quaternion q_global_move3d = q_pose3d_last*q_local_move2d*q_pose3d_last.inverse();
+
+		odom3d_now.pose.pose.position.x = odom3d_last.pose.pose.position.x + q_global_move3d.x();
+		odom3d_now.pose.pose.position.y = odom3d_last.pose.pose.position.y + q_global_move3d.y();
+		odom3d_now.pose.pose.position.z = odom3d_last.pose.pose.position.z + q_global_move3d.z();
+	}
+	/*2Dto3D (using linear velocity)*/
+	else if(!first_callback_odom && mode_use_linear_velocity){
+		double dt = (odom2d_now.header.stamp - odom2d_last.header.stamp).toSec();
+		tf::Quaternion q_pose3d_now;
+		quaternionMsgToTF(odom3d_now.pose.pose.orientation, q_pose3d_now);
+		tf::Quaternion q_local_move2d(
+			odom2d_now.twist.twist.linear.x*dt,
+			0.0,
+			0.0,
+			0.0
+		);
+		tf::Quaternion q_global_move3d = q_pose3d_now*q_local_move2d*q_pose3d_now.inverse();
 
 		odom3d_now.pose.pose.position.x = odom3d_last.pose.pose.position.x + q_global_move3d.x();
 		odom3d_now.pose.pose.position.y = odom3d_last.pose.pose.position.y + q_global_move3d.y();
