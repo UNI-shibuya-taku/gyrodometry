@@ -26,7 +26,7 @@ class ImuInitialAlignment{
 		/* const double threshold_abs_imu_angular = 0.03; */
 		/* const double threshold_abs_odom_linear = 1.0e-3; */
 		/* const double threshold_abs_odom_angular = 1.0e-3; */
-		const int min_record_size = 10;
+		const int min_record_size = 20;
 		/*objects*/
 		geometry_msgs::Quaternion initial_orientation;
 		std::vector<sensor_msgs::Imu> record;
