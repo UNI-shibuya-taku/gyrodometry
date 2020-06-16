@@ -25,8 +25,8 @@ class InitialAlignment{
 		/*time*/
 		ros::Time _start_stamp;
 		/*vector*/
-		Eigen::VectorXd _sum;
-		Eigen::VectorXd _ave;
+		Eigen::VectorXd _sum{_data_size};
+		Eigen::VectorXd _ave{_data_size};
 		/*object*/
 		int _record_size = 0;
 		/*flag*/
@@ -53,19 +53,19 @@ InitialAlignment::InitialAlignment()
 {
 	std::cout << "IMU Initial Alignment: START" << std::endl;
 	/*parameter*/
-	_nhPrivate.param("_ini_ori_is_0001", _ini_ori_is_0001, false);
+	_nhPrivate.param("ini_ori_is_0001", _ini_ori_is_0001, false);
 	std::cout << "_ini_ori_is_0001" << (bool)_ini_ori_is_0001 << std::endl;
-	_nhPrivate.param("_frame_id", _frame_id, std::string("/odom"));
+	_nhPrivate.param("frame_id", _frame_id, std::string("/odom"));
 	std::cout << "_frame_id" << _frame_id << std::endl;
-	_nhPrivate.param("_child_frame_id", _child_frame_id, std::string("/initial_orientation"));
+	_nhPrivate.param("child_frame_id", _child_frame_id, std::string("/initial_orientation"));
 	std::cout << "_child_frame_id" << _child_frame_id << std::endl;
-	_nhPrivate.param("_min_record_size", _min_record_size, 100);
+	_nhPrivate.param("min_record_size", _min_record_size, 100);
 	std::cout << "_min_record_size" << _min_record_size << std::endl;
-	_nhPrivate.param("_max_duration", _max_duration, 60.0);
+	_nhPrivate.param("max_duration", _max_duration, 60.0);
 	std::cout << "_max_duration" << _max_duration << std::endl;
-	_nhPrivate.param("_th_linear_deflection", _th_linear_deflection, 0.03);
+	_nhPrivate.param("th_linear_deflection", _th_linear_deflection, 0.03);
 	std::cout << "_th_linear_deflection" << _th_linear_deflection << std::endl;
-	_nhPrivate.param("_th_angle_deflection", _th_angle_deflection, 0.2);
+	_nhPrivate.param("th_angle_deflection", _th_angle_deflection, 0.2);
 	std::cout << "_th_angle_deflection" << _th_angle_deflection << std::endl;
 	/*subscriber*/
 	_sub_imu = _nh.subscribe("/imu/data", 1, &InitialAlignment::callbackIMU, this);
@@ -78,7 +78,10 @@ InitialAlignment::InitialAlignment()
 
 void InitialAlignment::callbackIMU(const sensor_msgs::ImuConstPtr& msg)
 {
-	if(_is_done)	publication();
+	if(_is_done){
+		publication();
+		return;
+	}
 	if(_is_fail)	return;
 
 	/*record*/
