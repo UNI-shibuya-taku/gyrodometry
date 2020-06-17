@@ -1,69 +1,83 @@
 #include <ros/ros.h>
-#include <tf/transform_broadcaster.h>
 #include <tf/tf.h>
+#include <tf/transform_broadcaster.h>
+#include <geometry_msgs/QuaternionStamped.h>
 #include <nav_msgs/Odometry.h>
 #include <sensor_msgs/Imu.h>
 
 class Gyrodometry{
 	private:
 		/*node hangle*/
-		ros::NodeHandle nh;
-		ros::NodeHandle nhPrivate;
+		ros::NodeHandle _nh;
+		ros::NodeHandle _nhPrivate;
 		/*subscribe*/
-		ros::Subscriber sub_inipose;
-		ros::Subscriber sub_odom;
-		ros::Subscriber sub_imu;
-		ros::Subscriber sub_bias;
+		ros::Subscriber _sub_inipose;
+		ros::Subscriber _sub_odom;
+		ros::Subscriber _sub_imu;
+		ros::Subscriber _sub_bias;
 		/*publish*/
-		ros::Publisher pub_odom;
-		tf::TransformBroadcaster tf_broadcaster;
+		ros::Publisher _pub_odom;
+		tf::TransformBroadcaster _tf_broadcaster;
 		/*odom*/
-		nav_msgs::Odometry odom2d_now;
-		nav_msgs::Odometry odom2d_last;
-		nav_msgs::Odometry odom3d_now;
-		nav_msgs::Odometry odom3d_last;
+		nav_msgs::Odometry _odom2d_last;
+		nav_msgs::Odometry _odom3d_now;
+		nav_msgs::Odometry _odom3d_last;
 		/*objects*/
-		sensor_msgs::Imu bias;
-		sensor_msgs::Imu imu_last;
+		sensor_msgs::Imu _bias;
+		sensor_msgs::Imu _imu_last;
 		/*time*/
 		ros::Time time_imu_now;
 		ros::Time time_imu_last;
 		/*flags*/
-		bool first_callback_odom = true;
-		bool first_callback_imu = true;
-		bool inipose_is_available = false;
-		bool bias_is_available = false;
+		bool _got_first_odom = false;
+		bool _got_first_imu = false;
+		bool _got_inipose = false;
+		bool _got_bias = false;
 		/*parameters*/
-		bool mode_use_linear_velocity;
+		bool _wait_inipose;
+		bool _linear_vel_is_available;
+		std::string _frame_id;
+		std::string _child_frame_id;
 	public:
 		Gyrodometry();
-		void InitializeOdom(nav_msgs::Odometry& odom);
-		void CallbackInipose(const geometry_msgs::QuaternionConstPtr& msg);
-		void CallbackOdom(const nav_msgs::OdometryConstPtr& msg);
-		void CallbackIMU(const sensor_msgs::ImuConstPtr& msg);
-		void CallbackBias(const sensor_msgs::ImuConstPtr& msg);
-		void Publication(void);
+		void initializeOdom(nav_msgs::Odometry& odom);
+		void callbackIniPose(const geometry_msgs::QuaternionStampedConstPtr& msg);
+		void callbackOdom(const nav_msgs::OdometryConstPtr& msg);
+		void callbackIMU(const sensor_msgs::ImuConstPtr& msg);
+		void callbackBias(const sensor_msgs::ImuConstPtr& msg);
+		void transformLinVel(nav_msgs::Odometry odom2d_now, double dt);
+		void transformAngVel(sensor_msgs::Imu imu, double dt);
+		void publication(ros::Time stamp);
 };
 
 Gyrodometry::Gyrodometry()
-	:nhPrivate("~")
+	:_nhPrivate("~")
 {
-	sub_inipose = nh.subscribe("/initial_orientation", 1, &Gyrodometry::CallbackInipose, this);
-	sub_odom = nh.subscribe("/odom", 1, &Gyrodometry::CallbackOdom, this);
-	sub_imu = nh.subscribe("/imu/data", 1, &Gyrodometry::CallbackIMU, this);
-	sub_bias = nh.subscribe("/imu/bias", 1, &Gyrodometry::CallbackBias, this);
-	pub_odom = nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
-	InitializeOdom(odom3d_now);
-	InitializeOdom(odom3d_last);
-
-	nhPrivate.param("mode_use_linear_velocity", mode_use_linear_velocity, false);
-	std::cout << "mode_use_linear_velocity = " << (bool)mode_use_linear_velocity << std::endl;
+	/*parameter*/
+	_nhPrivate.param("wait_inipose", _wait_inipose, true);
+	std::cout << "_wait_inipose = " << (bool)_wait_inipose << std::endl;
+	_nhPrivate.param("linear_vel_is_available", _linear_vel_is_available, false);
+	std::cout << "_linear_vel_is_available = " << (bool)_linear_vel_is_available << std::endl;
+	_nhPrivate.param("frame_id", _frame_id, std::string("/odom"));
+	std::cout << "_frame_id = " << _frame_id << std::endl;
+	_nhPrivate.param("child_frame_id", _child_frame_id, std::string("/gyrodometry"));
+	std::cout << "_child_frame_id = " << _child_frame_id << std::endl;
+	/*subscriber*/
+	_sub_inipose = _nh.subscribe("/initial_orientation", 1, &Gyrodometry::callbackIniPose, this);
+	_sub_odom = _nh.subscribe("/odom", 1, &Gyrodometry::callbackOdom, this);
+	_sub_imu = _nh.subscribe("/imu/data", 1, &Gyrodometry::callbackIMU, this);
+	_sub_bias = _nh.subscribe("/imu/_bias", 1, &Gyrodometry::callbackBias, this);
+	/*publisher*/
+	_pub_odom = _nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
+	/*initialize*/
+	initializeOdom(_odom3d_now);
+	initializeOdom(_odom3d_last);
 }
 
-void Gyrodometry::InitializeOdom(nav_msgs::Odometry& odom)
+void Gyrodometry::initializeOdom(nav_msgs::Odometry& odom)
 {
-	odom.header.frame_id = "/odom";
-	odom.child_frame_id = "/gyrodometry";
+	odom.header.frame_id = _frame_id;
+	odom.child_frame_id = _child_frame_id;
 	odom.pose.pose.position.x = 0.0;
 	odom.pose.pose.position.y = 0.0;
 	odom.pose.pose.position.z = 0.0;
@@ -71,127 +85,147 @@ void Gyrodometry::InitializeOdom(nav_msgs::Odometry& odom)
 	odom.pose.pose.orientation.y = 0.0;
 	odom.pose.pose.orientation.z = 0.0;
 	odom.pose.pose.orientation.w = 1.0;
+
+	if(!_wait_inipose)	_got_inipose = true;
 }
 
-void Gyrodometry::CallbackInipose(const geometry_msgs::QuaternionConstPtr& msg)
+void Gyrodometry::callbackIniPose(const geometry_msgs::QuaternionStampedConstPtr& msg)
 {
-	if(!inipose_is_available){
-		odom3d_now.pose.pose.orientation = *msg;
-		inipose_is_available = true;
+	if(!_got_inipose){
+		_odom3d_now.pose.pose.orientation = msg->quaternion;
+		_got_inipose = true;
 	} 
 }
 
-void Gyrodometry::CallbackOdom(const nav_msgs::OdometryConstPtr& msg)
+void Gyrodometry::callbackOdom(const nav_msgs::OdometryConstPtr& msg)
 {
-	odom2d_now = *msg;
-
-	/*2Dto3D*/
-	if(!first_callback_odom && !mode_use_linear_velocity){
-		tf::Quaternion q_pose2d_last;
-		tf::Quaternion q_pose3d_last;
-		quaternionMsgToTF(odom2d_last.pose.pose.orientation, q_pose2d_last);
-		quaternionMsgToTF(odom3d_last.pose.pose.orientation, q_pose3d_last);
-
-		tf::Quaternion q_global_move2d(
-			odom2d_now.pose.pose.position.x - odom2d_last.pose.pose.position.x,
-			odom2d_now.pose.pose.position.y - odom2d_last.pose.pose.position.y,
-			odom2d_now.pose.pose.position.z - odom2d_last.pose.pose.position.z,
-			0.0
-		);
-		tf::Quaternion q_local_move2d = q_pose2d_last.inverse()*q_global_move2d*q_pose2d_last;
-		tf::Quaternion q_global_move3d = q_pose3d_last*q_local_move2d*q_pose3d_last.inverse();
-
-		odom3d_now.pose.pose.position.x = odom3d_last.pose.pose.position.x + q_global_move3d.x();
-		odom3d_now.pose.pose.position.y = odom3d_last.pose.pose.position.y + q_global_move3d.y();
-		odom3d_now.pose.pose.position.z = odom3d_last.pose.pose.position.z + q_global_move3d.z();
+	/*skip first callback*/
+	if(!_got_first_odom){
+		_odom2d_last = *msg;
+		_got_first_odom = true;
+		return;
 	}
-	/*2Dto3D (using linear velocity)*/
-	else if(!first_callback_odom && mode_use_linear_velocity){
-		double dt = (odom2d_now.header.stamp - odom2d_last.header.stamp).toSec();
-		tf::Quaternion q_pose3d_now;
-		quaternionMsgToTF(odom3d_now.pose.pose.orientation, q_pose3d_now);
-		tf::Quaternion q_local_move2d(
+	/*get dt*/
+	double dt;
+	try{
+		dt = (msg->header.stamp - _odom2d_last.header.stamp).toSec();
+	}
+	catch(std::runtime_error& ex) {
+		ROS_ERROR("Exception: [%s]", ex.what());
+		return;
+	}
+	if(_got_inipose){
+		/*transform*/
+		transformLinVel(*msg, dt);
+		/*publication*/
+		publication(msg->header.stamp);
+	}
+	/*reset*/
+	_odom2d_last = *msg;
+	_odom3d_last = _odom3d_now;
+}
+
+void Gyrodometry::callbackIMU(const sensor_msgs::ImuConstPtr& msg)
+{
+	/*skip first callback*/
+	if(!_got_first_imu){
+		_imu_last = *msg;
+		_got_first_imu = true;
+		return;
+	}
+	/*Get dt*/
+	double dt;
+	try{
+		dt = (msg->header.stamp - _imu_last.header.stamp).toSec();
+	}
+	catch(std::runtime_error& ex) {
+		ROS_ERROR("Exception: [%s]", ex.what());
+		return;
+	}
+	if(_got_inipose){
+		/*transform*/
+		transformAngVel(*msg, dt);
+		/*publication*/
+		publication(msg->header.stamp);
+	}
+	/*reset*/
+	_imu_last = *msg;
+}
+
+void Gyrodometry::callbackBias(const sensor_msgs::ImuConstPtr& msg)
+{
+	if(!_got_bias){
+		_bias = *msg;
+		_got_bias = true;
+	}
+}
+
+void Gyrodometry::transformLinVel(nav_msgs::Odometry odom2d_now, double dt)
+{
+	tf::Quaternion q_global_move3d;
+	if(_linear_vel_is_available){
+		tf::Quaternion q_ori3d_now;
+		quaternionMsgToTF(_odom3d_now.pose.pose.orientation, q_ori3d_now);
+		tf::Quaternion q_local_move(
 			odom2d_now.twist.twist.linear.x*dt,
 			0.0,
 			0.0,
 			0.0
 		);
-		tf::Quaternion q_global_move3d = q_pose3d_now*q_local_move2d*q_pose3d_now.inverse();
-
-		odom3d_now.pose.pose.position.x = odom3d_last.pose.pose.position.x + q_global_move3d.x();
-		odom3d_now.pose.pose.position.y = odom3d_last.pose.pose.position.y + q_global_move3d.y();
-		odom3d_now.pose.pose.position.z = odom3d_last.pose.pose.position.z + q_global_move3d.z();
+		q_global_move3d = q_ori3d_now*q_local_move*q_ori3d_now.inverse();
 	}
-
-	odom2d_last = odom2d_now;
-	odom3d_last = odom3d_now;
-	first_callback_odom = false;
-
-	Publication();
+	else{
+		tf::Quaternion q_ori2d_last;
+		tf::Quaternion q_ori3d_last;
+		quaternionMsgToTF(_odom2d_last.pose.pose.orientation, q_ori2d_last);
+		quaternionMsgToTF(_odom3d_last.pose.pose.orientation, q_ori3d_last);
+		tf::Quaternion q_global_move2d(
+			odom2d_now.pose.pose.position.x - _odom2d_last.pose.pose.position.x,
+			odom2d_now.pose.pose.position.y - _odom2d_last.pose.pose.position.y,
+			odom2d_now.pose.pose.position.z - _odom2d_last.pose.pose.position.z,
+			0.0
+		);
+		tf::Quaternion q_local_move = q_ori2d_last.inverse()*q_global_move2d*q_ori2d_last;
+		q_global_move3d = q_ori3d_last*q_local_move*q_ori3d_last.inverse();
+	}
+	_odom3d_now.pose.pose.position.x += q_global_move3d.x();
+	_odom3d_now.pose.pose.position.y += q_global_move3d.y();
+	_odom3d_now.pose.pose.position.z += q_global_move3d.z();
 }
 
-void Gyrodometry::CallbackIMU(const sensor_msgs::ImuConstPtr& msg)
+void Gyrodometry::transformAngVel(sensor_msgs::Imu imu, double dt)
 {
-	/*Get dt*/
-	time_imu_now = ros::Time::now();
-	double dt;
-	try{
-		dt = (time_imu_now - time_imu_last).toSec();
+	double dr = (imu.angular_velocity.x + _imu_last.angular_velocity.x)*dt/2.0;
+	double dp = (imu.angular_velocity.y + _imu_last.angular_velocity.y)*dt/2.0;
+	double dy = (imu.angular_velocity.z + _imu_last.angular_velocity.z)*dt/2.0;
+	if(_got_bias){
+		dr -= _bias.angular_velocity.x*dt;
+		dp -= _bias.angular_velocity.y*dt;
+		dy -= _bias.angular_velocity.z*dt;
 	}
-	catch(std::runtime_error& ex) {
-		ROS_ERROR("Exception: [%s]", ex.what());
-	}
-	time_imu_last = time_imu_now;
-
-	/*PoseEstimation*/
-	if(first_callback_imu)	dt = 0.0;
-	else if(inipose_is_available){
-		double delta_r = (msg->angular_velocity.x + imu_last.angular_velocity.x)*dt/2.0;
-		double delta_p = (msg->angular_velocity.y + imu_last.angular_velocity.y)*dt/2.0;
-		double delta_y = (msg->angular_velocity.z + imu_last.angular_velocity.z)*dt/2.0;
-		if(bias_is_available){
-			delta_r -= bias.angular_velocity.x*dt;
-			delta_p -= bias.angular_velocity.y*dt;
-			delta_y -= bias.angular_velocity.z*dt;
-		}
-
-		tf::Quaternion q_relative_rotation = tf::createQuaternionFromRPY(delta_r, delta_p, delta_y);
-		tf::Quaternion q_pose3d_now;
-		quaternionMsgToTF(odom3d_now.pose.pose.orientation, q_pose3d_now);
-		q_pose3d_now = q_pose3d_now*q_relative_rotation;
-		q_pose3d_now.normalize();
-		quaternionTFToMsg(q_pose3d_now, odom3d_now.pose.pose.orientation);
-	}
-
-	Publication();
-
-	imu_last = *msg;
-	first_callback_imu = false;
+	tf::Quaternion q_rel_rot = tf::createQuaternionFromRPY(dr, dp, dy);
+	tf::Quaternion q_ori3d_now;
+	quaternionMsgToTF(_odom3d_now.pose.pose.orientation, q_ori3d_now);
+	q_ori3d_now = q_ori3d_now*q_rel_rot;
+	q_ori3d_now.normalize();
+	quaternionTFToMsg(q_ori3d_now, _odom3d_now.pose.pose.orientation);
 }
 
-void Gyrodometry::CallbackBias(const sensor_msgs::ImuConstPtr& msg)
-{
-	if(!bias_is_available){
-		bias = *msg;
-		bias_is_available = true;
-	}
-}
-
-void Gyrodometry::Publication(void)
+void Gyrodometry::publication(ros::Time stamp)
 {
 	/*publish*/
-	odom3d_now.header.stamp = odom2d_now.header.stamp;
-	pub_odom.publish(odom3d_now);
+	_odom3d_now.header.stamp = stamp;
+	_pub_odom.publish(_odom3d_now);
 	/*tf broadcast*/
     geometry_msgs::TransformStamped transform;
-	transform.header.stamp = odom2d_now.header.stamp;
-	transform.header.frame_id = "/odom";
-	transform.child_frame_id = "/gyrodometry";
-	transform.transform.translation.x = odom3d_now.pose.pose.position.x;
-	transform.transform.translation.y = odom3d_now.pose.pose.position.y;
-	transform.transform.translation.z = odom3d_now.pose.pose.position.z;
-	transform.transform.rotation = odom3d_now.pose.pose.orientation;
-	tf_broadcaster.sendTransform(transform);
+	transform.header.stamp = stamp;
+	transform.header.frame_id = _frame_id;
+	transform.child_frame_id = _child_frame_id;
+	transform.transform.translation.x = _odom3d_now.pose.pose.position.x;
+	transform.transform.translation.y = _odom3d_now.pose.pose.position.y;
+	transform.transform.translation.z = _odom3d_now.pose.pose.position.z;
+	transform.transform.rotation = _odom3d_now.pose.pose.orientation;
+	_tf_broadcaster.sendTransform(transform);
 }
 
 int main(int argc, char** argv)
