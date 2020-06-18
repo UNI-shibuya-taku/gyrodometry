@@ -16,8 +16,19 @@
 
 	<!-- main -->
 	<node pkg="gyrodometry" name="initial_alignment" type="initial_alignment" output="screen">
+		<!-- <param name="ini_ori_is_0001" type="bool" value="false"/> -->
+		<!-- <param name="frame_id" type="string" value="/odom"/> -->
+		<!-- <param name="child_frame_id" type="string" value="/initial_orientation"/> -->
+		<!-- <param name="min_record_size" type="int" value="100"/> -->
+		<!-- <param name="max_duration" type="double" value="60.0"/> -->
+		<!-- <param name="th_linear_deflection" type="double" value="0.03"/> -->
+		<!-- <param name="th_angle_deflection" type="double" value="0.2"/> -->
 	</node>
 	<node pkg="gyrodometry" name="gyrodometry3d" type="gyrodometry3d" output="screen">
 		<!-- <remap from="/odom" to="/tinypower/odom/republished"/> -->
+		<!-- <param name="wait_inipose" type="bool" value="true"/> -->
+		<!-- <param name="linear_vel_is_available" type="bool" value="true"/> -->
+		<!-- <param name="frame_id" type="string" value="/odom"/> -->
+		<!-- <param name="child_frame_id" type="string" value="/gyrodometry"/> -->
 	</node>
 </launch>

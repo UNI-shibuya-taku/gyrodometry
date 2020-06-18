@@ -121,6 +121,7 @@ void InitialAlignment::callbackIMU(const sensor_msgs::ImuConstPtr& msg)
 	try{
 		duration = (msg->header.stamp - _start_stamp).toSec();
 		if(duration > _max_duration){
+			std::cout << "duration = " << duration << " > " << _max_duration << std::endl;
 			_is_done = true;
 			setMsg(msg->header);
 			publication();
