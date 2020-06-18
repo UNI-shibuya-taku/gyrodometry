@@ -66,7 +66,7 @@ Gyrodometry::Gyrodometry()
 	_sub_inipose = _nh.subscribe("/initial_orientation", 1, &Gyrodometry::callbackIniPose, this);
 	_sub_odom = _nh.subscribe("/odom", 1, &Gyrodometry::callbackOdom, this);
 	_sub_imu = _nh.subscribe("/imu/data", 1, &Gyrodometry::callbackIMU, this);
-	_sub_bias = _nh.subscribe("/imu/_bias", 1, &Gyrodometry::callbackBias, this);
+	_sub_bias = _nh.subscribe("/imu/bias", 1, &Gyrodometry::callbackBias, this);
 	/*publisher*/
 	_pub_odom = _nh.advertise<nav_msgs::Odometry>("/gyrodometry", 1);
 	/*initialize*/
