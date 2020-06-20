@@ -51,6 +51,7 @@ class InitialAlignment{
 InitialAlignment::InitialAlignment()
 	:_nhPrivate("~")
 {
+	std::cout << "--- initial_alignment.cpp ---" << std::endl;
 	std::cout << "IMU Initial Alignment: START" << std::endl;
 	/*parameter*/
 	_nhPrivate.param("ini_ori_is_0001", _ini_ori_is_0001, false);

@@ -53,6 +53,7 @@ class Gyrodometry{
 Gyrodometry::Gyrodometry()
 	:_nhPrivate("~")
 {
+	std::cout << "--- gyrodometry3d ---" << std::endl;
 	/*parameter*/
 	_nhPrivate.param("wait_inipose", _wait_inipose, true);
 	std::cout << "_wait_inipose = " << (bool)_wait_inipose << std::endl;
