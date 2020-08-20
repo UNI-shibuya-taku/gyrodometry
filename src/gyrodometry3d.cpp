@@ -169,8 +169,8 @@ void Gyrodometry::transformLinVel(nav_msgs::Odometry odom2d_now, double dt)
 		quaternionMsgToTF(_odom3d_now.pose.pose.orientation, q_ori3d_now);
 		tf::Quaternion q_local_move(
 			odom2d_now.twist.twist.linear.x*dt,
-			0.0,
-			0.0,
+			odom2d_now.twist.twist.linear.y*dt,
+			odom2d_now.twist.twist.linear.z*dt,
 			0.0
 		);
 		q_global_move3d = q_ori3d_now*q_local_move*q_ori3d_now.inverse();
